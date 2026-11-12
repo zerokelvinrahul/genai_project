@@ -1,0 +1,23 @@
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.cache/
+
+# Simulation binaries and dumps
+*.vvp
+*.vcd
+*.fst
+
+# EDA temporary files
+*.ys
+temp_*.v
+current_active.v
+
+# OS files
+.DS_Store
+Thumbs.db
+

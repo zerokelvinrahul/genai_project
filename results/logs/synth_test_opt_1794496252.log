@@ -1,0 +1,17 @@
+=== YOSYS STDOUT ===
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.70+385 (git sha1 098e46a36, Release, GNU /usr/bin/x86_64-w64-mingw32-g++ 15.2.1)
+
+-- Executing script file `C:\Users\m5cd3\AppData\Local\Temp\tmpyymjzzue.ys' --
+
+1. Executing Verilog-2005 frontend: E:/SEMESTER 7/DC/genai_project/test_opt.v
+Parsing SystemVerilog input from `E:/SEMESTER 7/DC/genai_project/test_opt.v' to AST representation.
+
+=== YOSYS STDERR ===
+E:/SEMESTER 7/DC/genai_project/test_opt.v:2: ERROR: syntax error, unexpected TOK_ID
+

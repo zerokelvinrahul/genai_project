@@ -1,0 +1,14 @@
+=== COMPILATION STDOUT ===
+
+=== COMPILATION STDERR ===
+E:\SEMESTER 7\DC\genai_project\rtl\optimized\alu_16bit_generated_opt_v3.v:39: syntax error
+E:\SEMESTER 7\DC\genai_project\rtl\optimized\alu_16bit_generated_opt_v3.v:40: Syntax in assignment statement l-value.
+
+=== SIMULATION STDOUT ===
+
+=== SIMULATION STDERR ===
+
+=== ERROR SUMMARY ===
+Compilation failed (exit code 2):
+E:\SEMESTER 7\DC\genai_project\rtl\optimized\alu_16bit_generated_opt_v3.v:39: syntax error
+E:\SEMESTER 7\DC\genai_project\rtl\optimized\alu_16bit_generated_opt_v3.v:40: Syntax in assignment statement l-value.

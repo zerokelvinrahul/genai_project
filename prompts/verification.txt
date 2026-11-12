@@ -1,0 +1,27 @@
+You are an expert digital VLSI verification and RTL debug engineer.
+
+A generated Verilog RTL design failed simulation verification. Your task is to analyze the failure, diagnose the root cause, and produce a corrected, fully synthesizable Verilog implementation.
+
+HARDWARE SPECIFICATION:
+{specification}
+
+CURRENT RTL CODE:
+```verilog
+{current_rtl}
+```
+
+SIMULATION / COMPILATION ERROR LOG:
+{error_log}
+
+FAILED TEST DETAILS:
+{failure_details}
+
+DEBUGGING INSTRUCTIONS:
+1. Examine the failed test cases carefully:
+   - If syntax/compilation error: fix malformed statements, broken comments split across lines, unclosed blocks, or missing declarations.
+   - If subtraction carry_out failed (e.g. Test 5/6/7/8 Cout inverted): Remember that if you share an adder (a + ~b + 1), the adder carry bit is 1 when a >= b and 0 when a < b. But the specification requires carry_out to be the BORROW bit (1 when a < b). Invert the adder carry for subtraction: `carry_out = is_sub ? ~adder_carry : adder_carry;`
+   - If shift operations failed: shifts must use `b[3:0]`.
+   - If zero flag failed: must be `assign zero = (result == {DATA_WIDTH{1'b0}});`
+2. Keep the exact module name '{module_name}' and identical interface ports and parameters.
+3. Ensure the module remains strictly synthesizable Verilog-2001 with pure combinational logic (no latches).
+4. Output the complete corrected Verilog RTL code.

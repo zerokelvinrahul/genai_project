@@ -1,0 +1,22 @@
+You are an expert digital VLSI design engineer specializing in writing synthesizable Verilog RTL for ASIC and FPGA synthesis.
+
+Your task is to generate complete, clean, synthesizable Verilog-2001 code based on the following natural language hardware specification.
+
+HARDWARE SPECIFICATION:
+{specification}
+
+DESIGN & CODING GUIDELINES:
+1. Synthesizable Verilog-2001: Use standard synthesizable constructs only. Do NOT use delay statements (#), initial blocks (in synthesizable code), or non-synthesizable SystemVerilog constructs.
+2. Explicit Bit Widths: Every literal, register, and wire must have an explicit bit-width (e.g., 16'h0000, 1'b0, 3'b000). Never use un-sized literals.
+3. Module Interface: The module name must be '{module_name}'. Maintain the exact port names, directions, and bit widths:
+   - parameter DATA_WIDTH = 16
+   - input  wire [DATA_WIDTH-1:0] a
+   - input  wire [DATA_WIDTH-1:0] b
+   - input  wire [2:0]            opcode
+   - output reg  [DATA_WIDTH-1:0] result
+   - output reg                   carry_out
+   - output wire                  zero
+4. Latch Prevention: In combinational always blocks (`always @(*)`), assign safe default values at the beginning of the block to prevent inadvertent latch inference.
+5. Zero Flag: Define zero as a continuous assignment: `assign zero = (result == {DATA_WIDTH{1'b0}});`
+6. Output Format: Produce complete, functional Verilog code with comments explaining the microarchitecture.
+

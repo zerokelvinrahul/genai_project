@@ -1,0 +1,14 @@
+=== YOSYS STDOUT ===
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.70+385 (git sha1 098e46a36, Release, GNU /usr/bin/x86_64-w64-mingw32-g++ 15.2.1)
+
+-- Executing script file `C:\Users\m5cd3\AppData\Local\Temp\tmpbjo_464u.ys' --
+
+=== YOSYS STDERR ===
+ERROR: File `E:/SEMESTER' not found or is a directory
+

@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "top_module": "alu_16bit",
+  "total_cells": 590,
+  "mux_count": 77,
+  "logic_cell_count": 513,
+  "sequential_cell_count": 0,
+  "num_wires": 578,
+  "num_wire_bits": 625,
+  "num_ports": 6,
+  "cell_types": {
+    "$_ANDNOT_": 17,
+    "$_AND_": 161,
+    "$_MUX_": 77,
+    "$_NAND_": 187,
+    "$_NOR_": 5,
+    "$_NOT_": 3,
+    "$_ORNOT_": 44,
+    "$_OR_": 68,
+    "$_XNOR_": 16,
+    "$_XOR_": 12
+  },
+  "synthesis_time_seconds": 0.435,
+  "error_message": "",
+  "log_path": "E:\\SEMESTER 7\\DC\\genai_project\\results\\logs\\synth_baseline.log",
+  "metric_type_note": "Cell counts are architectural logic proxies (generic gate primitives), not calibrated physical silicon area (um^2)."
+}
