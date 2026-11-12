@@ -1,0 +1,35 @@
+You are an expert digital VLSI verification engineer.
+Your task is to write a complete, self-checking deterministic Verilog-2001 testbench for the specified hardware module.
+
+HARDWARE SPECIFICATION:
+{specification}
+
+MODULE RTL CODE:
+```verilog
+{verilog_code}
+```
+
+TESTBENCH REQUIREMENTS:
+1. Synthesizable simulation standard: Verilog-2001 with `timescale 1ns / 1ps.
+2. Self-checking task: Implement a deterministic test checking task (e.g., `check_result`) that displays:
+   - `[PASS] Test <num> (<name>) - Inputs -> Outputs` when actual matches expected.
+   - `[FAIL] Test <num> (<name>) - Inputs | Actual (Exp: Expected)` on mismatch.
+3. Comprehensive Vector Coverage:
+   - Cover ALL opcodes defined in the specification.
+   - Include directed boundary test vectors: zero inputs, maximum positive values, minimum negative values, overflow/saturation, borrow/underflow, identity.
+4. Summary Banner:
+   At simulation finish, print the exact summary format so the test parser can extract it:
+   ```
+   === VERIFICATION SUMMARY ===
+   TOTAL TESTS : <total>
+   PASSED      : <passed>
+   FAILED      : <failed>
+   STATUS: <PASSED or FAILED>
+   ```
+5. End of Simulation: Call `$finish;` after printing the summary banner.
+6. Timing: Allow propagation delay (e.g., `#5;` or `#10;`) between stimulus application and output sampling.
+CRITICAL STRING & SYNTAX RULES:
+- NEVER split a quoted string literal across newlines! Every string literal must be entirely on one single line (e.g. `check_result(4, "ADD_OVERFLOW", ...);`).
+- Do NOT output stray newlines inside function/task arguments.
+- Return ONLY valid synthesizable Verilog testbench code in a ```verilog code block.
+

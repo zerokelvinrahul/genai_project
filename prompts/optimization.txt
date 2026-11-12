@@ -1,65 +1,44 @@
-You are a senior ASIC synthesis and PPA (Power, Performance, Area) optimization specialist.
+You are a principal VLSI physical design and PPA (Power, Performance, Area) optimization engineer.
 
-Your task is to optimize a functionally verified Verilog RTL design to improve the designated optimization objective while strictly preserving exact functional equivalence and interface specifications.
+You are given a functionally verified Verilog RTL design, its hardware specification, and its current Yosys synthesis PPA statistics.
+Your task is to re-architect and optimize the Verilog RTL code to improve PPA metrics (lower area/cell count, reduce multiplexing overhead, and minimize critical path delay).
 
 HARDWARE SPECIFICATION:
 {specification}
 
-CURRENT VERIFIED RTL:
+CURRENT VERIFIED RTL CODE:
 ```verilog
 {current_rtl}
 ```
 
-CURRENT YOSYS SYNTHESIS METRICS:
-- Total Cells: {total_cells}
-- MUX Cells: {mux_count}
+CURRENT PPA SYNTHESIS METRICS:
+- Total Cells (Area Proxy): {total_cells}
+- Multiplexer Count: {mux_count}
 - Combinational Logic Gates: {logic_cell_count}
 - Sequential Cells: {sequential_cell_count}
+- Longest Topological Path / Logic Depth (Timing Proxy): {longest_path_depth}
+- Total Wire Bits (Power & Interconnect Proxy): {num_wire_bits}
 - Total Wires: {num_wires}
-- Synthesis Time: {synthesis_time}s
+- Synthesis Runtime: {synthesis_time}s
 
 OPTIMIZATION OBJECTIVE:
 {optimization_objective}
 
 {previous_failure_context}
 
-CRITICAL ARCHITECTURAL & VERIFICATION CONSTRAINTS:
-1. Exact Interface:
+CRITICAL RULES:
+1. Exact Interface Preservation:
    - Module name: '{module_name}'
-   - Parameter: DATA_WIDTH = 16
-   - Ports:
-     input  wire [DATA_WIDTH-1:0] a,
-     input  wire [DATA_WIDTH-1:0] b,
-     input  wire [2:0]            opcode,
-     output reg  [DATA_WIDTH-1:0] result,
-     output reg                   carry_out,
-     output wire                  zero
-
-2. Exact Operation Table:
-   - 3'b000: Addition: {carry_out, result} = a + b (carry_out is 1 on unsigned overflow)
-   - 3'b001: Subtraction: {carry_out, result} = a - b (carry_out is 1 on borrow, i.e., when a < b)
-   - 3'b010: Bitwise AND: result = a & b, carry_out = 0
-   - 3'b011: Bitwise OR:  result = a | b, carry_out = 0
-   - 3'b100: Bitwise XOR: result = a ^ b, carry_out = 0
-   - 3'b101: Logical Shift Left:  result = a << b[3:0], carry_out = 0
-   - 3'b110: Logical Shift Right: result = a >> b[3:0], carry_out = 0
-   - 3'b111: Pass A: result = a, carry_out = 0
-
-3. CRITICAL ARITHMETIC / BORROW SEMANTICS (DO NOT GET THIS WRONG):
-   - When sharing a single adder core for both addition and subtraction:
-     In subtraction (opcode 3'b001), B is inverted and carry_in is 1 (two's complement: a + ~b + 1).
-     NOTE CAREFULLY: An adder produces a carry-out of 1 when a >= b (no borrow) and 0 when a < b (borrow occurred).
-     However, the baseline ALU specification requires carry_out = 1 on BORROW (when a < b).
-     Therefore, you MUST invert the adder's carry-out for subtraction:
-     `carry_out = is_sub ? ~adder_carry : adder_carry;` (or `carry_out = adder_carry ^ is_sub;`)
-     DO NOT output an un-inverted adder carry for subtraction!
-
-4. Zero Flag:
-   - Must be continuously assigned: `assign zero = (result == {DATA_WIDTH{1'b0}});`
-
-5. Verilog-2001 Synthesizability & Coding Standards:
-   - Pure combinational logic (no flip-flops, no latches). Assign default values or cover all cases.
-   - Do NOT split inline comments across newlines.
-   - Ensure explicit bit widths everywhere.
-
-Provide the complete, optimized, synthesizable Verilog code.
+   - Do NOT alter any port names, directions, or bit widths.
+2. Functional Equivalence:
+   - Every single operation, clamping condition, flag behavior, and boundary case defined in the specification must remain 100% intact.
+3. Realistic Microarchitectural Transformations:
+   - Arithmetic Resource Sharing (share adders/subtractors across related opcodes).
+   - Multiplexer Tree Minimization (hierarchical 2-level decoding, eliminate redundant branches).
+   - Common Boolean Sub-expression Elimination.
+   - Carry/Borrow & Sign Extension Optimization.
+4. Synthesizable Verilog-2001:
+   - Fully combinational (or matching clock/reset if sequential).
+   - No latch inference (safe default assignments at top of always block).
+5. Output Format:
+   - Return complete optimized synthesizable Verilog code enclosed in a ```verilog ``` block.

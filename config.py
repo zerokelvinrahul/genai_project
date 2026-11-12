@@ -10,7 +10,6 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent
 
 # RTL and Testbench paths
-RTL_BASELINE_DIR = BASE_DIR / "rtl" / "baseline"
 RTL_GENERATED_DIR = BASE_DIR / "rtl" / "generated"
 RTL_OPTIMIZED_DIR = BASE_DIR / "rtl" / "optimized"
 TESTBENCHES_DIR = BASE_DIR / "testbenches"
@@ -22,7 +21,7 @@ LOGS_DIR = RESULTS_DIR / "logs"
 METRICS_DIR = RESULTS_DIR / "metrics"
 REPORTS_DIR = RESULTS_DIR / "reports"
 
-for d in [RTL_BASELINE_DIR, RTL_GENERATED_DIR, RTL_OPTIMIZED_DIR, 
+for d in [RTL_GENERATED_DIR, RTL_OPTIMIZED_DIR, 
           TESTBENCHES_DIR, RESULTS_DIR, LOGS_DIR, METRICS_DIR, REPORTS_DIR, PROMPTS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 

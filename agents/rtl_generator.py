@@ -3,9 +3,9 @@ import re
 from pathlib import Path
 from pydantic import BaseModel, Field
 from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 import config
+from agents.base_agent import BaseLLMAgent
 from utils.parsing import (
     RTLGenerationOutput,
     extract_verilog_code,
@@ -14,24 +14,9 @@ from utils.parsing import (
 )
 from utils.file_manager import FileManager
 
-class RTLGenerator:
+class RTLGenerator(BaseLLMAgent):
     def __init__(self, api_key: str | None = None, model_name: str | None = None):
-        self.api_key = api_key or config.GOOGLE_API_KEY
-        self.model_name = model_name or config.GEMINI_MODEL
-        self._llm = None
-
-    def _get_llm(self) -> ChatGoogleGenerativeAI:
-        if not self.api_key:
-            raise ValueError(
-                "GOOGLE_API_KEY is not configured. Please set GOOGLE_API_KEY in your .env file or Streamlit sidebar."
-            )
-        if self._llm is None:
-            self._llm = ChatGoogleGenerativeAI(
-                model=self.model_name,
-                google_api_key=self.api_key,
-                temperature=0.1
-            )
-        return self._llm
+        super().__init__(api_key=api_key, model_name=model_name, temperature=0.1)
 
     def generate(
         self,
@@ -53,18 +38,25 @@ class RTLGenerator:
         llm = self._get_llm()
         
         # Request structured output using Pydantic model
+        messages = [
+            SystemMessage(content="You are a hardware design engineer generating synthesizable Verilog RTL."),
+            HumanMessage(content=prompt)
+        ]
         try:
             structured_llm = llm.with_structured_output(RTLGenerationOutput)
-            result: RTLGenerationOutput = structured_llm.invoke([
-                SystemMessage(content="You are a hardware design engineer generating synthesizable Verilog RTL."),
-                HumanMessage(content=prompt)
-            ])
+            result: RTLGenerationOutput = self.invoke_with_retry(messages)
+            if not isinstance(result, RTLGenerationOutput):
+                raw_code = extract_verilog_code(result.content)
+                result = RTLGenerationOutput(
+                    module_name=module_name,
+                    verilog_code=raw_code,
+                    explanation="Generated RTL module",
+                    supported_operations=[],
+                    interface_description=""
+                )
         except Exception as e:
             # Fallback to direct prompt and manual parsing if structured output fails
-            raw_resp = llm.invoke([
-                SystemMessage(content="You are a hardware design engineer generating synthesizable Verilog RTL."),
-                HumanMessage(content=prompt + "\nReturn ONLY valid Verilog inside a ```verilog code block.")
-            ])
+            raw_resp = self.invoke_with_retry(messages)
             extracted_code = extract_verilog_code(raw_resp.content)
             result = RTLGenerationOutput(
                 module_name=module_name,
@@ -87,7 +79,7 @@ class RTLGenerator:
         detected_name = extract_module_name(clean_code)
         if detected_name and detected_name != module_name:
             # Correct the module header to match the expected interface name
-            clean_code = re.sub(rf"\bmodule\s+{detected_name}\b", f"module {module_name}", clean_code, count=1)
+            clean_code = re.sub(rf"\bmodule\s+{re.escape(detected_name)}\b", f"module {module_name}", clean_code, count=1)
             result.verilog_code = clean_code
             result.module_name = module_name
 

@@ -1,5 +1,4 @@
 import json
-import shutil
 from pathlib import Path
 import config
 
@@ -8,10 +7,9 @@ class FileManager:
     def save_rtl(code: str, category: str, filename: str) -> Path:
         """
         Saves RTL code to rtl/<category>/<filename>.
-        category: 'baseline', 'generated', 'optimized'
+        category: 'generated', 'optimized'
         """
         target_dir = {
-            "baseline": config.RTL_BASELINE_DIR,
             "generated": config.RTL_GENERATED_DIR,
             "optimized": config.RTL_OPTIMIZED_DIR
         }.get(category, config.RTL_GENERATED_DIR)
@@ -35,12 +33,4 @@ class FileManager:
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         return out_path
-
-    @staticmethod
-    def get_baseline_rtl_path() -> Path:
-        return config.RTL_BASELINE_DIR / "alu_16bit.v"
-
-    @staticmethod
-    def get_deterministic_tb_path() -> Path:
-        return config.TESTBENCHES_DIR / "alu_16bit_tb.v"
 

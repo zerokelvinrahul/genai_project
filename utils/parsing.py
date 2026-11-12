@@ -1,6 +1,60 @@
 import re
 from pydantic import BaseModel, Field
 
+class PortDefinition(BaseModel):
+    name: str = Field(..., description="Port identifier (e.g. 'a', 'result')")
+    direction: str = Field(..., description="'input' or 'output'")
+    port_type: str = Field(default="wire", description="'wire' or 'reg'")
+    width: str = Field(..., description="Bit-width range or '1' (e.g. '[DATA_WIDTH-1:0]', '[2:0]', '1')")
+    is_signed: bool = Field(default=False, description="Whether port is signed")
+    description: str = Field(default="", description="Functional description of port")
+
+class OpcodeDefinition(BaseModel):
+    opcode: str = Field(..., description="Binary/hex opcode literal (e.g. '3b000')")
+    operation_name: str = Field(..., description="Descriptive name (e.g. 'Addition', 'Absolute Difference')")
+    description: str = Field(..., description="Detailed mathematical behavior, flags affected, and clamping")
+
+class StructuredHardwareSpecification(BaseModel):
+    module_name: str = Field(..., description="Clean snake_case module identifier")
+    description: str = Field(..., description="High-level hardware architectural summary")
+    parameters: dict[str, str] = Field(default_factory=dict, description="Verilog parameters with default values (e.g. {'DATA_WIDTH': '16'})")
+    ports: list[PortDefinition] = Field(default_factory=list, description="List of all input and output ports")
+    operation_table: list[OpcodeDefinition] = Field(default_factory=list, description="Opcode mappings")
+    status_flags: list[str] = Field(default_factory=list, description="Summary of status flags (e.g. zero, carry, saturated)")
+    design_constraints: list[str] = Field(default_factory=list, description="Synthesizability and latch prevention rules")
+    raw_spec_text: str = Field(default="", description="Full human-readable specification text")
+
+    def to_formatted_prompt_text(self) -> str:
+        """Formats the structured spec into clean markdown text for subsequent LLM agents."""
+        lines = [
+            f"# Hardware Specification: {self.module_name}",
+            f"{self.description}\n",
+            "## Parameters:"
+        ]
+        for k, v in self.parameters.items():
+            lines.append(f"- {k} = {v}")
+        
+        lines.append("\n## Ports:")
+        for p in self.ports:
+            signed_str = " signed" if p.is_signed else ""
+            lines.append(f"- {p.direction} {p.port_type}{signed_str} {p.width} {p.name}: {p.description}")
+            
+        lines.append("\n## Operation Table:")
+        for op in self.operation_table:
+            lines.append(f"- {op.opcode}: {op.operation_name} -> {op.description}")
+            
+        if self.status_flags:
+            lines.append("\n## Status Flags:")
+            for flag in self.status_flags:
+                lines.append(f"- {flag}")
+                
+        if self.design_constraints:
+            lines.append("\n## Design Constraints:")
+            for c in self.design_constraints:
+                lines.append(f"- {c}")
+                
+        return "\n".join(lines)
+
 class RTLGenerationOutput(BaseModel):
     module_name: str = Field(..., description="The name of the top-level Verilog module (e.g. alu_16bit)")
     verilog_code: str = Field(..., description="The full, synthesizable Verilog RTL source code")

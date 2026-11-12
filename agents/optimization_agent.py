@@ -6,6 +6,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 import config
+from agents.base_agent import BaseLLMAgent
 from eda.simulator import Simulator, SimulationResult
 from eda.synthesizer import Synthesizer, SynthesisMetrics
 from agents.verification_agent import VerificationAgent, VerificationReport
@@ -43,7 +44,7 @@ class OptimizationRunReport(BaseModel):
     candidates: list[OptimizationCandidateResult] = Field(default_factory=list)
     summary: str = ""
 
-class OptimizationAgent:
+class OptimizationAgent(BaseLLMAgent):
     def __init__(
         self,
         simulator: Simulator | None = None,
@@ -54,10 +55,9 @@ class OptimizationAgent:
         max_iterations: int = 3,
         max_repairs_per_candidate: int = 3
     ):
+        super().__init__(api_key=api_key, model_name=model_name, temperature=0.2)
         self.simulator = simulator or Simulator()
         self.synthesizer = synthesizer or Synthesizer()
-        self.api_key = api_key or config.GOOGLE_API_KEY
-        self.model_name = model_name or config.GEMINI_MODEL
         self.max_iterations = max_iterations
         self.max_repairs_per_candidate = max_repairs_per_candidate
         self.verifier = verification_agent or VerificationAgent(
@@ -66,20 +66,6 @@ class OptimizationAgent:
             model_name=self.model_name,
             max_repair_attempts=self.max_repairs_per_candidate
         )
-        self._llm = None
-
-    def _get_llm(self) -> ChatGoogleGenerativeAI:
-        if not self.api_key:
-            raise ValueError(
-                "GOOGLE_API_KEY is not configured. Please set GOOGLE_API_KEY in your .env file or Streamlit sidebar."
-            )
-        if self._llm is None:
-            self._llm = ChatGoogleGenerativeAI(
-                model=self.model_name,
-                google_api_key=self.api_key,
-                temperature=0.2
-            )
-        return self._llm
 
     def optimize(
         self,
@@ -130,9 +116,9 @@ class OptimizationAgent:
                     iteration=i
                 )
             except Exception as e:
-                print(f"[OptimizationAgent] LLM generation failed: {e}")
+                print(f"[OptimizationAgent] LLM generation failed for candidate v{i}: {e}")
                 failure_history.append(f"Iteration {i} LLM call error: {e}")
-                break
+                continue
 
             # 2. Save candidate RTL
             cand_filename = f"{Path(initial_rtl_path).stem}_opt_v{i}.v"
@@ -298,6 +284,8 @@ class OptimizationAgent:
             .replace("{mux_count}", str(current_metrics.mux_count))
             .replace("{logic_cell_count}", str(current_metrics.logic_cell_count))
             .replace("{sequential_cell_count}", str(current_metrics.sequential_cell_count))
+            .replace("{longest_path_depth}", str(current_metrics.longest_path_depth))
+            .replace("{num_wire_bits}", str(current_metrics.num_wire_bits))
             .replace("{num_wires}", str(current_metrics.num_wires))
             .replace("{synthesis_time}", str(current_metrics.synthesis_time_seconds))
             .replace("{optimization_objective}", objective)
@@ -305,17 +293,27 @@ class OptimizationAgent:
             .replace("{module_name}", module_name)
         )
 
-        llm = self._get_llm()
+        messages = [
+            SystemMessage(content="You are a senior ASIC VLSI synthesis and logic optimization engineer."),
+            HumanMessage(content=prompt)
+        ]
         try:
             structured_llm = llm.with_structured_output(RTLOptimizationOutput)
-            result: RTLOptimizationOutput = structured_llm.invoke([
-                SystemMessage(content="You are a senior ASIC VLSI synthesis and logic optimization engineer."),
-                HumanMessage(content=prompt)
-            ])
-            code = extract_verilog_code(result.optimized_verilog_code)
-            result.optimized_verilog_code = code
+            result = self.invoke_with_retry(messages)
+            if hasattr(result, "optimized_verilog_code"):
+                code = extract_verilog_code(result.optimized_verilog_code)
+                result.optimized_verilog_code = code
+            else:
+                code = extract_verilog_code(result.content)
+                result = RTLOptimizationOutput(
+                    candidate_name=f"opt_cand_v{iteration}",
+                    optimized_verilog_code=code,
+                    optimization_strategy=objective,
+                    expected_improvement="Targeted cell and mux count reduction",
+                    modifications=["Logic refactoring"]
+                )
         except Exception:
-            raw = llm.invoke([
+            raw = self.invoke_with_retry([
                 SystemMessage(content="You are a senior ASIC VLSI synthesis and logic optimization engineer."),
                 HumanMessage(content=prompt + "\nReturn ONLY the optimized Verilog in a ```verilog code block.")
             ])
@@ -335,7 +333,7 @@ class OptimizationAgent:
         detected = extract_module_name(result.optimized_verilog_code)
         if detected and detected != module_name:
             result.optimized_verilog_code = re.sub(
-                rf"\bmodule\s+{detected}\b",
+                rf"\bmodule\s+{re.escape(detected)}\b",
                 f"module {module_name}",
                 result.optimized_verilog_code,
                 count=1

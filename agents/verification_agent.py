@@ -6,6 +6,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 import config
+from agents.base_agent import BaseLLMAgent
 from eda.simulator import Simulator, SimulationResult
 from utils.parsing import (
     RTLRepairOutput,
@@ -30,7 +31,7 @@ class VerificationReport(BaseModel):
     final_simulation: SimulationResult | None = None
     summary: str = ""
 
-class VerificationAgent:
+class VerificationAgent(BaseLLMAgent):
     def __init__(
         self,
         simulator: Simulator | None = None,
@@ -38,24 +39,47 @@ class VerificationAgent:
         model_name: str | None = None,
         max_repair_attempts: int = 3
     ):
+        super().__init__(api_key=api_key, model_name=model_name, temperature=0.1)
         self.simulator = simulator or Simulator()
-        self.api_key = api_key or config.GOOGLE_API_KEY
-        self.model_name = model_name or config.GEMINI_MODEL
         self.max_repair_attempts = max_repair_attempts
-        self._llm = None
 
-    def _get_llm(self) -> ChatGoogleGenerativeAI:
-        if not self.api_key:
-            raise ValueError(
-                "GOOGLE_API_KEY is not configured. Please set GOOGLE_API_KEY in your .env file or Streamlit sidebar."
-            )
-        if self._llm is None:
-            self._llm = ChatGoogleGenerativeAI(
-                model=self.model_name,
-                google_api_key=self.api_key,
-                temperature=0.1
-            )
-        return self._llm
+    def generate_testbench(
+        self,
+        specification: str,
+        verilog_code: str,
+        module_name: str,
+        output_tb_filename: str | None = None
+    ) -> Path:
+        """
+        Dynamically generates a deterministic, self-checking Verilog-2001 testbench
+        tailored for the specified hardware module and operation table.
+        """
+        tb_template_path = config.PROMPTS_DIR / "testbench_generation.txt"
+        if not tb_template_path.is_file():
+            raise FileNotFoundError(f"Missing prompt template: {tb_template_path}")
+            
+        prompt = (
+            tb_template_path.read_text(encoding="utf-8")
+            .replace("{specification}", specification)
+            .replace("{verilog_code}", verilog_code)
+            .replace("{module_name}", module_name)
+        )
+
+        messages = [
+            SystemMessage(content="You are an expert digital VLSI verification engineer writing deterministic self-checking testbenches."),
+            HumanMessage(content=prompt)
+        ]
+        raw = self.invoke_with_retry(messages)
+        tb_code = extract_verilog_code(raw.content)
+
+        # Fix any LLM newline-split string literals (e.g. "ADD_OVERFLOW\n")
+        tb_code = re.sub(r'"([^"\n]*)\n\s*([^"\n]*)"', r'"\1_\2"', tb_code)
+
+        tb_filename = output_tb_filename or f"{module_name}_tb.v"
+        tb_path = config.TESTBENCHES_DIR / tb_filename
+        tb_path.write_text(tb_code, encoding="utf-8")
+        print(f"[VerificationAgent] Generated dynamic self-checking testbench at: {tb_path}")
+        return tb_path
 
     def verify_and_repair(
         self,
@@ -70,6 +94,11 @@ class VerificationAgent:
 
         attempts: list[VerificationAttempt] = []
         attempt_num = 0
+
+        # Base stem to avoid accumulating nested _repair_att suffixes
+        base_stem = current_path.stem
+        if "_repair_att" in base_stem:
+            base_stem = base_stem.split("_repair_att")[0]
 
         while attempt_num <= self.max_repair_attempts:
             # Run deterministic hardware simulation
@@ -117,8 +146,8 @@ class VerificationAgent:
                     module_name=module_name
                 )
 
-                # Save repaired RTL candidate
-                repaired_filename = f"{current_path.stem}_repair_att{attempt_num}.v"
+                # Save repaired RTL candidate using clean base_stem
+                repaired_filename = f"{base_stem}_repair_att{attempt_num}.v"
                 current_path = FileManager.save_rtl(
                     code=repaired_code,
                     category=category,
@@ -160,17 +189,23 @@ class VerificationAgent:
         llm = self._get_llm()
         try:
             structured_llm = llm.with_structured_output(RTLRepairOutput)
-            result: RTLRepairOutput = structured_llm.invoke([
+            messages = [
                 SystemMessage(content="You are an expert digital VLSI verification engineer fixing bugs in RTL."),
                 HumanMessage(content=prompt)
-            ])
-            code = extract_verilog_code(result.repaired_verilog_code)
-            diagnosis = result.bug_explanation
+            ]
+            result = self.invoke_with_retry(messages)
+            if hasattr(result, "repaired_verilog_code"):
+                code = extract_verilog_code(result.repaired_verilog_code)
+                diagnosis = result.bug_explanation
+            else:
+                code = extract_verilog_code(result.content)
+                diagnosis = "Repaired via direct response"
         except Exception:
-            raw = llm.invoke([
+            messages = [
                 SystemMessage(content="You are an expert digital VLSI verification engineer fixing bugs in RTL."),
                 HumanMessage(content=prompt + "\nReturn ONLY the corrected Verilog RTL in a ```verilog code block.")
-            ])
+            ]
+            raw = self.invoke_with_retry(messages)
             code = extract_verilog_code(raw.content)
             diagnosis = "Repaired via direct prompt fallback"
 
@@ -181,7 +216,7 @@ class VerificationAgent:
         # Ensure module name matches
         detected_name = extract_module_name(code)
         if detected_name and detected_name != module_name:
-            code = re.sub(rf"\bmodule\s+{detected_name}\b", f"module {module_name}", code, count=1)
+            code = re.sub(rf"\bmodule\s+{re.escape(detected_name)}\b", f"module {module_name}", code, count=1)
 
         return code, diagnosis
 
